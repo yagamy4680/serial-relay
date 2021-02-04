@@ -42,13 +42,13 @@ class ProtocolManager
     p.on \from_dst_filtered, (chunk) -> return src.write chunk
     src.set_peer_and_filter dst, (peer, chunk) -> return p.process_src_bytes chunk
     dst.set_peer_and_filter src, (peer, chunk) -> return p.process_dst_bytes chunk
-    (serr) <- src.start
-    return done serr if serr?
-    (serr) <- dst.start
-    return done serr if serr?
     (perr) <- p.start
     return done perr if perr?
-    logger.info "successfully initiate src, dst, and p"
+    (derr) <- dst.start
+    return done derr if derr?
+    (serr) <- src.start
+    return done serr if serr?
+    logger.info "successfully initiate protocol, dst(#{dst.name}), and src(#{src.name})"
     return done!
     
 
