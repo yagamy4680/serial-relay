@@ -57,7 +57,7 @@ module.exports = exports = (pino, assetDir, src, dst) ->
   try
     ProtocolClass = require "#{assetDir}/.relay/protocol"
   catch
-    pino.error "no such protocol instance: #{assetDir}/.relay/protocol"
+    pino.error e, "no such protocol instance: #{assetDir}/.relay/protocol, due to the error #{e.name}"
     ProtocolClass = DummyProtocol
 
   pm = new ProtocolManager pino, ProtocolClass, assetDir, src, dst

@@ -44,4 +44,4 @@ module.exports = exports =
     s2 = new SerialDriver logger, 2, serial2
     pw = CreateProtocolManager logger, assetDir, s1, s2
     (err) <- pw.start
-    eturn ERR_EXIT logger, err if err?
+    return ERR_EXIT logger, err if err?
