@@ -29,7 +29,7 @@ module.exports = exports = class TcpDriver extends EventEmitter
     tcp.on \error, (err) -> return self.on_error err
     tcp.on \data, (data) -> return self.on_data data
 
-  set_peer_and_filter: (@peer, @packetFilter) ->
+  set_data_cb: (@cb) ->
     return
 
   start: (done) ->
@@ -45,13 +45,7 @@ module.exports = exports = class TcpDriver extends EventEmitter
     return @tcp.write chunk
 
   on_data: (chunk) ->
-    {peer, packetFilter} = self = @
-    return unless peer? or packetFilter?
-    filtered = chunk
-    filtered = (packetFilter self, chunk) if packetFilter? and \function is typeof packetFilter
-    return unless filtered?
-    return unless peer?
-    return peer.write filtered
+    return @cb chunk if @cb?
 
   on_error: (err) ->
     @logger.info "err => #{err}"

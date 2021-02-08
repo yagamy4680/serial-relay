@@ -43,11 +43,11 @@ class ConnectionHandler
 
 
 
-module.exports = exports = class TcpServer extends EventEmitter
+module.exports = exports = class TcpMonitor extends EventEmitter
   (pino, @port=8080) ->
     self = @
     self.connections = []
-    logger = @logger = pino.child {messageKey: 'TcpServer'}
+    logger = @logger = pino.child {messageKey: 'TcpMonitor'}
     server = @server = net.createServer (c) -> return self.incomingConnection c
 
   start: (done) ->

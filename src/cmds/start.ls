@@ -1,5 +1,5 @@
 {CreateConnection} = require \../helpers/connection
-TcpServer = require \../helpers/tcp-monitor
+TcpMonitor = require \../helpers/tcp-monitor
 WebServer = require \../helpers/web
 CreateProtocolManager = require \../helpers/protocol-mgr
 require! <[pino path]>
@@ -22,6 +22,18 @@ There are 2 types of supported connections to be relayed:
 
   2. Tcp
       e.g. tcp://10.42.0.213:9090
+
+
+There are 4 directions of filters:
+  [1] s2p
+  [2] d2p
+  [3] p2d
+  [4] p2s
+
+        s2p        p2d
+  src --[1]--> p --[3]--> dst
+  dst --[2]--> p --[4]--> src
+        d2p        p2s
 '''
 
 ERR_EXIT = (logger, err) ->
@@ -39,7 +51,10 @@ module.exports = exports =
       .epilogue EPILOG
       .alias \p, \port
       .default \p, 8080
-      .describe \p, "the port number for tcp proxy server to listen"
+      .describe \p, "the port number for tcp monitor server to listen"
+      .alias \d, \directions
+      .default \d, "p2d,p2s"
+      .describe \d, "the direction filters for the traffics dumped to tcp monitor server"
       .alias \v, \verbose
       .default \v, no
       .describe \v, "verbose output"
@@ -49,8 +64,9 @@ module.exports = exports =
 
   handler: (argv) ->
     {config} = global
-    {verbose, conn1, conn2, assetDir} = argv
+    {verbose, conn1, conn2, assetDir, port, directions} = argv
     console.log "verbose = #{verbose}"
+    console.log "directions = #{directions}"
     console.log JSON.stringify argv, ' ', null
     assetDir = "." unless assetDir?
     assetDir = path.resolve process.cwd!, assetDir
@@ -59,8 +75,9 @@ module.exports = exports =
     console.log "prettyPrint => #{JSON.stringify prettyPrint}"
     console.log "assetDir => #{assetDir}"
     logger = pino {prettyPrint, level}
+    tm = new TcpMonitor logger, port
     c1 = CreateConnection logger, 1, conn1
     c2 = CreateConnection logger, 2, conn2
-    pw = CreateProtocolManager logger, assetDir, c1, c2
+    pw = CreateProtocolManager logger, assetDir, c1, c2, tm, directions
     (err) <- pw.start
     return ERR_EXIT logger, err if err?
