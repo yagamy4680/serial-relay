@@ -4,18 +4,23 @@ require! <[byline through2]>
 
 ##
 # Startup a Serial server with given config string (similar to socat):
-# e.g.
-#       /dev/tty.usbmodem123456781:b115200:8:N:1
+#
+# e.g. The full url `serial:///dev/tty.usbmodem123456781?settings=b115200,8,N,1&name=MPU` is composed of 
+#      following fields:
+#         name = MPU
+#         pathname = /dev/tty.usbmodem123456781
+#         qs = {
+#            settings: 'b115200:8:N:1'
+#            }
 #
 module.exports = exports = class SerialDriver extends EventEmitter
-  (pino, @id, @configString) ->
+  (pino, @id, @name, @uri, @tokens) ->
     self = @
-    self.packetFilter = null
-    [c, name] = configString.split ':' 
-    console.log JSON.stringify {c, name}
-    throw new Error "missing name for SerialDriver => #{configString}" unless \string is typeof name
-    [filePath, baudRate, dataBits, parity, stopBits] = xs = c.split ','
-    throw new Error "missing filepath for serial drive => #{configString}" unless \string is typeof filePath
+    {pathname, qs} = tokens
+    {settings} = qs
+    pino.debug JSON.stringify {id, name, pathname, qs}
+    [baudRate, dataBits, parity, stopBits] = xs = settings.split ','
+    throw new Error "missing pathname in the given url: #{uri}" unless pathname?
     baudRate = 'b115200' unless baudRate? and \string is typeof baudRate
     throw new Error "incorrect baudrate setting: #{baudRate}" unless baudRate[0] is \b
     baudRate = parseInt baudRate.substring 1
@@ -25,14 +30,14 @@ module.exports = exports = class SerialDriver extends EventEmitter
     parity = 'none' if parity is \N
     stopBits = '1' unless stopBits? and \string is typeof stopBits
     stopBits = parseInt stopBits
+    autoOpen = no
+    self.packetFilter = null
+    self.connected = no
+    self.pathname = filePath = pathname
+    self.opts = opts = {autoOpen, baudRate, dataBits, parity, stopBits}
     self.configs = configs = {filePath, baudRate, parity, stopBits, dataBits}
     self.logger = logger = pino.child {messageKey: "SerialDriver##{id}"}
     logger.info "configs => #{JSON.stringify configs}"
-    autoOpen = no
-    connected = no
-    self.name = name
-    self.filePath = filePath
-    self.opts = opts = {autoOpen, baudRate, dataBits, parity, stopBits}
     p = @p = new SerialPort filePath, opts
     p.on \error, (err) -> return self.on_error err
     p.on \data, (data) -> return self.on_data data
@@ -41,9 +46,9 @@ module.exports = exports = class SerialDriver extends EventEmitter
     return
 
   start: (done) ->
-    {connected, filePath, opts, p, logger} = self = @
+    {connected, pathname, opts, p, logger} = self = @
     return if connected
-    logger.info "opening #{filePath.yellow} with options: #{(JSON.stringify opts).yellow} ..."
+    logger.info "opening #{pathname.yellow} with options: #{(JSON.stringify opts).yellow} ..."
     (err) <- p.open
     return done err if err?
     self.connected = yes
@@ -63,5 +68,5 @@ module.exports = exports = class SerialDriver extends EventEmitter
     return peer.write filtered
 
   on_error: (err) ->
-    console.log "err => #{err}"
-    @.logger.error err
+    @logger.info "err => #{err}"
+    @logger.error err

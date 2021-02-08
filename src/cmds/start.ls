@@ -1,10 +1,28 @@
-SerialPort = require \serialport
-SerialDriver = require \../helpers/serial
-TcpServer = require \../helpers/tcp
+{CreateConnection} = require \../helpers/connection
+TcpServer = require \../helpers/tcp-monitor
 WebServer = require \../helpers/web
 CreateProtocolManager = require \../helpers/protocol-mgr
 require! <[pino path]>
 
+const EXAMPLE_CMD = '$0 start tcp://10.42.0.213:9090?name=EPC serial:///dev/tty.usbmodem123456781?settings=b115200,8,N,1&name=MPU'
+const EXAMPLE_DESC = '''relay from one tcp connection (to remote 10.42.0.213:9090) to 
+another serial connection (to local device /dev/tty.usbmodem123456781 with given settings), 
+and setup a TcpServer as monitor.
+'''
+const EPILOG = '''
+There are 2 types of supported connections to be relayed:
+
+  1. Serial, 
+      e.g. `serial:///dev/tty.usbmodem123456781?settings=b115200,8,N,1`
+      Local UART device `/dev/tty.usbmodem123456781` with settings
+        - baudrate (115200)
+        - dataBit (8)
+        - parity (N)
+        - stopBits (1)
+
+  2. Tcp
+      e.g. tcp://10.42.0.213:9090
+'''
 
 ERR_EXIT = (logger, err) ->
   logger.error err
@@ -12,12 +30,13 @@ ERR_EXIT = (logger, err) ->
 
 
 module.exports = exports =
-  command: "start <serial1> <serial2> [<assetDir>]"
-  describe: "startup a relay server on serial1 and serial2 port, with a tcp server as monitor"
+  command: "start <conn1> <conn2> [<assetDir>]"
+  describe: "startup a relay server on conn1 and conn2 port, with a tcp server as monitor"
 
   builder: (yargs) ->
     yargs
-      .example '$0 start /dev/tty.usbserial-FTA3BHX6,b115200,8,N,1:s1 /dev/tty.usbmodem123456781,b115200,8,N,1:s2', 'run tcp proxy server at default port 8080, and relay the traffic of serial port at path /dev/tty.usbmodem1462103'
+      .example EXAMPLE_CMD, EXAMPLE_DESC
+      .epilogue EPILOG
       .alias \p, \port
       .default \p, 8080
       .describe \p, "the port number for tcp proxy server to listen"
@@ -30,7 +49,7 @@ module.exports = exports =
 
   handler: (argv) ->
     {config} = global
-    {verbose, serial1, serial2, assetDir} = argv
+    {verbose, conn1, conn2, assetDir} = argv
     console.log "verbose = #{verbose}"
     console.log JSON.stringify argv, ' ', null
     assetDir = "." unless assetDir?
@@ -40,8 +59,8 @@ module.exports = exports =
     console.log "prettyPrint => #{JSON.stringify prettyPrint}"
     console.log "assetDir => #{assetDir}"
     logger = pino {prettyPrint, level}
-    s1 = new SerialDriver logger, 1, serial1
-    s2 = new SerialDriver logger, 2, serial2
-    pw = CreateProtocolManager logger, assetDir, s1, s2
+    c1 = CreateConnection logger, 1, conn1
+    c2 = CreateConnection logger, 2, conn2
+    pw = CreateProtocolManager logger, assetDir, c1, c2
     (err) <- pw.start
     return ERR_EXIT logger, err if err?
