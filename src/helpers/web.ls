@@ -10,24 +10,23 @@ class ConnectionHandler
     @logger = parent.logger
     @logger.info "incoming socket.io connection ..."
     c.on \disconnect, -> return parent.removeConnection self
-    c.emit \setup, filepath, serialOpts
 
-  write: (chunk) ->
-    return @c.emit 'data', chunk
+  write: (evt=\data, chunk=[]) ->
+    return @c.emit evt, chunk
 
 
 module.exports = exports = class WebServer extends EventEmitter
-  (pino, @port=8081, @assetDir="#{__dirname}/../../assets/default", @filepath="ttyXXX", @serialOpts={}) ->
+  (pino, @port, @assetDir) ->
     self = @
     self.connections = []
     self.assetDir = path.resolve self.assetDir
     logger = @logger = pino.child {messageKey: 'WebServer'}
     logger.info "assetDir => #{self.assetDir}"
     app = @app = express!
-    app.use '/', express.static "#{self.assetDir}/web", {index: <[index.html index.htm]>}
+    app.use '/', express.static self.assetDir, {index: <[index.html index.htm]>}
     server = @server = http.createServer app
     io = @io = SocketIo server
-    channel = @channel = io.of '/serial'
+    channel = @channel = io.of '/relay'
     channel.on 'connection', (c) -> return self.incomingConnection c
 
   start: (done) ->
@@ -50,6 +49,10 @@ module.exports = exports = class WebServer extends EventEmitter
     logger.warn "disconnected, and removed from slots[#{idx}]"
     return connections.splice idx, 1 if idx?
 
-  broadcast: (chunk) ->    
+  broadcast: (evt, chunk) ->
     {connections} = self = @
-    [ (c.write chunk) for c in connections ]
+    [ (c.write evt, chunk) for c in connections ]
+
+  broadcastText: (evt, text) ->
+    chunk = Buffer.from text
+    return @broadcast evt, chunk

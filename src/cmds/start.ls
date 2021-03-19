@@ -1,6 +1,4 @@
 {CreateConnection} = require \../helpers/connection
-TcpMonitor = require \../helpers/tcp-monitor
-WebServer = require \../helpers/web
 CreateProtocolManager = require \../helpers/protocol-mgr
 require! <[pino path]>
 
@@ -65,9 +63,12 @@ module.exports = exports =
   handler: (argv) ->
     {config} = global
     {verbose, conn1, conn2, assetDir, port, directions} = argv
+    portTcp = port
+    portWeb = port + 1
+    console.log JSON.stringify argv, ' ', null
     console.log "verbose = #{verbose}"
     console.log "directions = #{directions}"
-    console.log JSON.stringify argv, ' ', null
+    console.log "monitor: tcp:#{portTcp}, web:#{portWeb}"
     assetDir = "." unless assetDir?
     assetDir = path.resolve process.cwd!, assetDir
     level = if verbose then 'trace' else 'info'
@@ -75,9 +76,8 @@ module.exports = exports =
     console.log "prettyPrint => #{JSON.stringify prettyPrint}"
     console.log "assetDir => #{assetDir}"
     logger = pino {prettyPrint, level}
-    tm = new TcpMonitor logger, port
     c1 = CreateConnection logger, 1, conn1
     c2 = CreateConnection logger, 2, conn2
-    pw = CreateProtocolManager logger, assetDir, c1, c2, tm, directions
+    pw = CreateProtocolManager logger, assetDir, c1, c2, portTcp, portWeb, directions
     (err) <- pw.start
     return ERR_EXIT logger, err if err?

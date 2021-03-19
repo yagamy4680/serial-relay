@@ -1,5 +1,7 @@
 EventEmitter = require \events
 require! <[fs path colors]>
+TcpMonitor = require \./tcp-monitor
+WebServer = require \./web
 
 const COLORS =
   bytes:
@@ -79,9 +81,11 @@ class DummyProtocol extends EventEmitter
 #           D2P        P2S
 #
 class ProtocolManager 
-  (@pino, @ProtocolClass, @assetDir, @src, @dst, @monitor, directions='p2d,p2s') ->
+  (@pino, @ProtocolClass, @relayDir, @src, @dst, @portTcp, @portWeb, directions='p2d,p2s') ->
     self = @
     self.logger = logger = pino.child {messageKey: "ProtocolManager"}
+    self.monitor = new TcpMonitor pino, portTcp
+    self.web = new WebServer  pino, portWeb, "#{relayDir}#{path.sep}web"
     self.p = p = new ProtocolClass self, pino, src.name, dst.name
     self.monitor_traffic_filters = directions.split ','
     self.direction_dumps = direction_dumps = {}
@@ -93,13 +97,15 @@ class ProtocolManager
     return
   
   start: (done) ->
-    {logger, src, dst, monitor, p} = self = @
+    {logger, src, dst, monitor, web, p} = self = @
     p.on \from_src_filtered, (chunk, annotation=null, verbose=no) -> return self.process_p2d chunk, annotation, verbose
     p.on \from_dst_filtered, (chunk, annotation=null, verbose=no) -> return self.process_p2s chunk, annotation, verbose
     src.set_data_cb (chunk) -> return self.process_s2p chunk
     dst.set_data_cb (chunk) -> return self.process_d2p chunk
     (merr) <- monitor.start
     return done merr if merr?
+    (werr) <- web.start
+    return done werr if werr?
     (perr) <- p.start
     return done perr if perr?
     (derr) <- dst.start
@@ -111,7 +117,9 @@ class ProtocolManager
 
   println: (line) ->
     console.log line
-    return @monitor.broadcast "#{line}\n"
+    text = "#{line}\n"
+    @monitor.broadcast text
+    @web.broadcastText "console", text
 
   bulk2text: (now, direction, bulk) ->
     {direction_dumps} = self = @
@@ -155,11 +163,13 @@ class ProtocolManager
 
 
 module.exports = exports = (pino, assetDir, src, dst, monitor, directions) -> 
+  relayDir = "#{assetDir}#{path.sep}.relay"
   try
-    ProtocolClass = require "#{assetDir}/.relay/protocol"
+    classPath = "#{relayDir}#{path.sep}protocol"
+    ProtocolClass = require classPath
   catch
-    pino.error e, "no such protocol instance: #{assetDir}/.relay/protocol, due to the error #{e.name}"
+    pino.error e, "no such protocol instance: #{classPath.yellow}, due to the error #{e.name}"
     ProtocolClass = DummyProtocol
 
-  pm = new ProtocolManager pino, ProtocolClass, assetDir, src, dst, monitor, directions
+  pm = new ProtocolManager pino, ProtocolClass, relayDir, src, dst, monitor, directions
   return pm
