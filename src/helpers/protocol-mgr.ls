@@ -214,8 +214,9 @@ class ProtocolManager
     return @p.init_remote ws, configs
 
 
-module.exports = exports = (pino, assetDir, src, dst, monitor, directions) -> 
+module.exports = exports = (pino, assetDir, src, dst, portTcp, portWeb, directions) -> 
   pino.info "assetDir = #{assetDir}"
+  pino.info "directions = #{directions}"
   relayDir = null
   if assetDir?
     relayDir = "#{assetDir}#{path.sep}.relay"
@@ -230,5 +231,5 @@ module.exports = exports = (pino, assetDir, src, dst, monitor, directions) ->
     ProtocolClass = WebsocketProtocol
     pino.info "use WebsocketProtocol as supervisor."
 
-  pm = new ProtocolManager pino, ProtocolClass, relayDir, src, dst, monitor, directions
+  pm = new ProtocolManager pino, ProtocolClass, relayDir, src, dst, portTcp, portWeb, directions
   return pm
