@@ -1,6 +1,7 @@
 EventEmitter = require \events
 SerialPort = require \serialport
 require! <[byline through2]>
+{BaseDriver} = require \./base
 
 ##
 # Startup a Serial server with given config string (similar to socat):
@@ -13,12 +14,12 @@ require! <[byline through2]>
 #            settings: 'b115200:8:N:1'
 #            }
 #
-module.exports = exports = class SerialDriver extends EventEmitter
+module.exports = exports = class SerialDriver extends BaseDriver
   (pino, @id, @name, @uri, @tokens) ->
+    super ...
     self = @
     {pathname, qs} = tokens
     {settings} = qs
-    pino.debug JSON.stringify {id, name, pathname, qs}
     [baudRate, dataBits, parity, stopBits] = xs = settings.split ','
     throw new Error "missing pathname in the given url: #{uri}" unless pathname?
     baudRate = 'b115200' unless baudRate? and \string is typeof baudRate
@@ -36,14 +37,9 @@ module.exports = exports = class SerialDriver extends EventEmitter
     self.pathname = filePath = pathname
     self.opts = opts = {autoOpen, baudRate, dataBits, parity, stopBits}
     self.configs = configs = {filePath, baudRate, parity, stopBits, dataBits}
-    self.logger = logger = pino.child {messageKey: "SerialDriver##{id}"}
-    logger.info "configs => #{JSON.stringify configs}"
     p = @p = new SerialPort filePath, opts
     p.on \error, (err) -> return self.on_error err
     p.on \data, (data) -> return self.on_data data
-
-  set_data_cb: (@cb) ->
-    return
 
   start: (done) ->
     {connected, pathname, opts, p, logger} = self = @
@@ -57,10 +53,3 @@ module.exports = exports = class SerialDriver extends EventEmitter
 
   write: (chunk) ->
     return @p.write chunk
-
-  on_data: (chunk) ->
-    return @cb chunk if @cb?
-
-  on_error: (err) ->
-    @logger.info "err => #{err}"
-    @logger.error err
