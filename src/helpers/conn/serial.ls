@@ -16,8 +16,9 @@ require! <[byline through2]>
 #
 module.exports = exports = class SerialDriver extends BaseDriver
   (pino, @id, @name, @uri, @tokens) ->
-    super ...
     self = @
+    self.className = "SerialDriver"
+    super ...
     {pathname, qs} = tokens
     {settings} = qs
     [baudRate, dataBits, parity, stopBits] = xs = settings.split ','
@@ -33,23 +34,53 @@ module.exports = exports = class SerialDriver extends BaseDriver
     stopBits = parseInt stopBits
     autoOpen = no
     self.packetFilter = null
-    self.connected = no
     self.pathname = filePath = pathname
     self.opts = opts = {autoOpen, baudRate, dataBits, parity, stopBits}
     self.configs = configs = {filePath, baudRate, parity, stopBits, dataBits}
-    p = @p = new SerialPort filePath, opts
+
+  ##
+  # Write a chunk of bytes as data to remote. Subclass of the BaseDriver
+  # needs to overwrite this function.
+  #
+  write_internally: (chunk) ->
+    return @p.write chunk
+
+  ##
+  # Establish a connection to the target. Subclass of the BaseDriver
+  # needs to overwrite this function. 
+  #
+  connect_internally: ->
+    {logger, name, configs, opts, pathname} = self = @
+    logger.info "<#{name}>: opening #{pathname.yellow} with options: #{(JSON.stringify opts).yellow} ..."
+    p = self.p = new SerialPort pathname, opts
     p.on \error, (err) -> return self.on_error err
     p.on \data, (data) -> return self.on_data data
-
-  start: (done) ->
-    {connected, pathname, opts, p, logger} = self = @
-    return if connected
-    logger.info "opening #{pathname.yellow} with options: #{(JSON.stringify opts).yellow} ..."
+    p.on \close, (err) -> return self.on_close err
     (err) <- p.open
-    return done err if err?
-    self.connected = yes
-    logger.debug "opened"
-    return done!
+    if err?
+      logger.info "<#{name}>: open but error => #{err}"
+      logger.error err
+      return self.clean_and_reset!
+    else
+      logger.info "<#{name}>: connected."
+      self.on_connected!
 
-  write: (chunk) ->
-    return @p.write chunk
+  on_error: (err) ->
+    {logger, name} = self = @
+    logger.info "<#{name}>: at_error(err) => #{err}"
+    logger.error err
+  
+  on_close: (err=null) ->
+    {logger, name} = self = @
+    logger.info "<#{name}>: at_close(err) => #{err}"
+    logger.error err if err?
+    self.clean_and_reset!
+
+  clean_and_reset: ->
+    {p} = self = @
+    p.removeAllListeners \error
+    p.removeAllListeners \data
+    p.removeAllListeners \close
+    self.p = null
+    self.on_disconnected!
+
