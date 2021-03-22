@@ -215,13 +215,20 @@ class ProtocolManager
 
 
 module.exports = exports = (pino, assetDir, src, dst, monitor, directions) -> 
-  relayDir = "#{assetDir}#{path.sep}.relay"
-  try
-    classPath = "#{relayDir}#{path.sep}protocol"
-    ProtocolClass = require classPath
-  catch
-    pino.error e, "no such protocol instance: #{classPath.yellow}, due to the error #{e.name}"
+  pino.info "assetDir = #{assetDir}"
+  relayDir = null
+  if assetDir?
+    relayDir = "#{assetDir}#{path.sep}.relay"
+    try
+      classPath = "#{relayDir}#{path.sep}protocol"
+      ProtocolClass = require classPath
+    catch
+      pino.error e, "no such protocol instance: #{classPath.yellow}, due to the error #{e.name}"
+      pino.info "fallback to DummyProtocol"
+      ProtocolClass = DummyProtocol
+  else
     ProtocolClass = WebsocketProtocol
+    pino.info "use WebsocketProtocol as supervisor."
 
   pm = new ProtocolManager pino, ProtocolClass, relayDir, src, dst, monitor, directions
   return pm

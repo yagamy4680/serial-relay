@@ -2,7 +2,7 @@
 CreateProtocolManager = require \../helpers/protocol-mgr
 require! <[pino path]>
 
-const EXAMPLE_CMD = '$0 start tcp://10.42.0.213:9090?name=EPC serial:///dev/tty.usbmodem123456781?settings=b115200,8,N,1&name=MPU'
+const EXAMPLE_CMD = '$0 supervise tcp://10.42.0.213:9090?name=EPC serial:///dev/tty.usbmodem123456781?settings=b115200,8,N,1&name=MPU'
 const EXAMPLE_DESC = '''relay from one tcp connection (to remote 10.42.0.213:9090) to 
 another serial connection (to local device /dev/tty.usbmodem123456781 with given settings), 
 and setup a TcpServer as monitor.
@@ -40,8 +40,8 @@ ERR_EXIT = (logger, err) ->
 
 
 module.exports = exports =
-  command: "start <conn1> <conn2> [<assetDir>]"
-  describe: "startup a relay server on conn1 and conn2 port with protocol instance from asset directory."
+  command: "supervise <conn1> <conn2>"
+  describe: "startup a relay server on conn1 and conn2 port, with a web-socket as supervisor."
 
   builder: (yargs) ->
     yargs
@@ -62,19 +62,18 @@ module.exports = exports =
 
   handler: (argv) ->
     {config} = global
-    {verbose, conn1, conn2, assetDir, port, directions} = argv
+    {verbose, conn1, conn2, port, directions} = argv
     portTcp = port
     portWeb = port + 1
+    assetDir = null
     console.log JSON.stringify argv, ' ', null
     console.log "verbose = #{verbose}"
     console.log "directions = #{directions}"
     console.log "monitor: tcp:#{portTcp}, web:#{portWeb}"
-    assetDir = "." unless assetDir?
-    assetDir = path.resolve process.cwd!, assetDir
+    console.log "assetDir = #{assetDir}"
     level = if verbose then 'trace' else 'info'
     prettyPrint = translateTime: 'SYS:HH:MM:ss.l', ignore: 'pid,hostname'
     console.log "prettyPrint => #{JSON.stringify prettyPrint}"
-    console.log "assetDir => #{assetDir}"
     logger = pino {prettyPrint, level}
     c1 = CreateConnection logger, 1, conn1
     c2 = CreateConnection logger, 2, conn2
