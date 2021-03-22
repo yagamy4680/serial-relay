@@ -3,17 +3,29 @@ SocketIo = require \socket.io
 require! <[express http path lodash]>
 
 
-class ConnectionHandler
+class ConnectionHandler extends EventEmitter
   (@parent, @c) ->
     self = @
     {filepath, serialOpts} = parent
     @logger = parent.logger
     @logger.info "incoming socket.io connection ..."
-    c.on \disconnect, -> return parent.removeConnection self
+    c.on \disconnect, -> return self.on_disconnect!
+    c.on \config, (configs) -> return self.on_config configs
+    c.on \protocol, (direction, chunk) -> return self.emit \protocol, direction, chunk
 
   write: (evt=\data, chunk=[]) ->
     return @c.emit evt, chunk
+  
+  send_packet: (evt, direction, chunk) ->
+    return @c.emit evt, direction, chunk
+  
+  on_disconnect: ->
+    @.emit \disconnect
+    return @parent.remove_connection @
 
+  on_config: (configs) ->
+    return @parent.initiate_remote_protocol @, configs
+  
 
 module.exports = exports = class WebServer extends EventEmitter
   (pino, @port, @assetDir) ->
@@ -27,7 +39,7 @@ module.exports = exports = class WebServer extends EventEmitter
     server = @server = http.createServer app
     io = @io = SocketIo server
     channel = @channel = io.of '/relay'
-    channel.on 'connection', (c) -> return self.incomingConnection c
+    channel.on 'connection', (c) -> return self.incoming_connection c
 
   start: (done) ->
     {server, port, logger, assetDir} = self = @
@@ -37,12 +49,12 @@ module.exports = exports = class WebServer extends EventEmitter
     logger.info "listening port #{port}"
     return done!
 
-  incomingConnection: (c) ->
+  incoming_connection: (c) ->
     {connections} = self = @
     h = new ConnectionHandler self, c
     return connections.push h
 
-  removeConnection: (h) ->
+  remove_connection: (h) ->
     {connections, prefix, logger} = self = @
     {remote} = h
     idx = lodash.findIndex connections, h
@@ -56,3 +68,9 @@ module.exports = exports = class WebServer extends EventEmitter
   broadcastText: (evt, text) ->
     chunk = Buffer.from text
     return @broadcast evt, chunk
+
+  initiate_remote_protocol: (c, configs) ->
+    {logger} = self = @
+    {name} = configs
+    setImmediate -> self.emit 'init_remote_protocol', c, configs
+    return logger.info "initiate_remote_protocol ...: #{path.basename name} => #{JSON.stringify configs}"

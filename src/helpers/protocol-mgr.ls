@@ -65,6 +65,54 @@ class DummyProtocol extends EventEmitter
 
 
 
+class WebsocketProtocol extends DummyProtocol
+  (@parent, @pino, @src_name, @dst_name) ->
+    self = @
+    self.ws = null
+    self.ws_event = \protocol
+    self.ws_disconnect_func = null
+    self.ws_protocol_func = null
+    return
+  
+  start: (done) ->
+    return done!
+
+  init_remote: (@ws, configs={}) ->
+    {ws_event} = self = @
+    self.parent.logger.info "incoming a socket.io connection as protocol instance..."
+    self.ws_disconnect_func = -> return self.at_ws_disconnect!
+    self.ws_protocol_func = (direction, chunk) -> return self.process_remote_bytes direction, chunk
+    ws.on \disconnect, self.ws_disconnect_func
+    ws.on ws_event, self.ws_protocol_func
+
+  at_ws_disconnect: ->
+    {ws, ws_event, ws_protocol_func, ws_disconnect_func} = self = @
+    ws.removeListener \disconnect, ws_disconnect_func
+    ws.removeListener ws_event, ws_protocol_func
+    self.ws_disconnect_func = null
+    self.ws_protocol_func = null
+    self.ws = null
+
+  send_ws_packet: (direction, chunk) ->
+    {ws_event, ws} = self = @
+    setImmediate -> ws.send_packet ws_event, direction, chunk
+    return null
+
+  process_src_bytes: (chunk) ->
+    return @.emit \from_src_filtered, chunk unless @ws?
+    # console.log "process_src_bytes, sending #{chunk.length} bytes to remote socket.io client"
+    return @.send_ws_packet \s2p, chunk
+
+  process_dst_bytes: (chunk) ->
+    return @.emit \from_dst_filtered, chunk unless @ws?
+    # console.log "process_dst_bytes, sending #{chunk.length} bytes to remote socket.io client"
+    return @.send_ws_packet \d2p, chunk
+  
+  process_remote_bytes: (direction, chunk) ->
+    return @.emit \from_src_filtered, chunk if direction is \p2d
+    return @.emit \from_dst_filtered, chunk if direction is \p2s
+
+
 ##
 # Given 2 serial drivers (src and dst), the Protocol instance plays the 
 # man in the middle to filter & manipulate protocol packets. 
@@ -85,7 +133,7 @@ class ProtocolManager
     self = @
     self.logger = logger = pino.child {messageKey: "ProtocolManager"}
     self.monitor = new TcpMonitor pino, portTcp
-    self.web = new WebServer  pino, portWeb, "#{relayDir}#{path.sep}web"
+    self.web = w = new WebServer  pino, portWeb, "#{relayDir}#{path.sep}web"
     self.p = p = new ProtocolClass self, pino, src.name, dst.name
     self.monitor_traffic_filters = directions.split ','
     self.direction_dumps = direction_dumps = {}
@@ -94,6 +142,7 @@ class ProtocolManager
     direction_dumps['p2d'] = "#{src.name}-->p#{COLORIZE '-->', 'bytes', 'p2d'}#{dst.name}"
     direction_dumps['d2p'] = "#{src.name}<--p#{COLORIZE '<--', 'bytes', 'p2d'}#{dst.name}"
     logger.info "directions => #{JSON.stringify self.monitor_traffic_filters}"
+    w.on \init_remote_protocol, (c, configs) -> return self.init_remote_protocol c, configs
     return
   
   start: (done) ->
@@ -161,6 +210,9 @@ class ProtocolManager
     @.dump_chunk \p2s, chunk, annotation, verbose
     return @src.write chunk
 
+  init_remote_protocol: (ws, configs) ->
+    return @p.init_remote ws, configs
+
 
 module.exports = exports = (pino, assetDir, src, dst, monitor, directions) -> 
   relayDir = "#{assetDir}#{path.sep}.relay"
@@ -169,7 +221,7 @@ module.exports = exports = (pino, assetDir, src, dst, monitor, directions) ->
     ProtocolClass = require classPath
   catch
     pino.error e, "no such protocol instance: #{classPath.yellow}, due to the error #{e.name}"
-    ProtocolClass = DummyProtocol
+    ProtocolClass = WebsocketProtocol
 
   pm = new ProtocolManager pino, ProtocolClass, relayDir, src, dst, monitor, directions
   return pm
