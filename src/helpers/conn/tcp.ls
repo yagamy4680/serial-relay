@@ -1,5 +1,6 @@
 EventEmitter = require \events
 require! <[net]>
+{BaseDriver} = require \./base
 
 ##
 # Startup a TcpClient with given config string (similar to socat):
@@ -12,25 +13,22 @@ require! <[net]>
 #            settings: 'b115200:8:N:1'
 #            }
 #
-module.exports = exports = class TcpDriver extends EventEmitter
+module.exports = exports = class TcpDriver extends BaseDriver
   (pino, @id, @name, @uri, @tokens) ->
+    super ...
     self = @
     {hostname, port, host} = tokens
     port = \2020 unless port?
     port = parseInt port
-    pino.debug JSON.stringify {id, name, hostname, port, uri}
     self.packetFilter = null
     self.connected = no
     self.hostname = hostname
     self.port = port
     self.host = "#{hostname}:#{port}"
-    self.logger = logger = pino.child {messageKey: "TcpDriver##{id}"}
+    self.logger.debug JSON.stringify {id, name, hostname, port, uri}
     tcp = self.tcp = new net.Socket!
     tcp.on \error, (err) -> return self.on_error err
     tcp.on \data, (data) -> return self.on_data data
-
-  set_data_cb: (@cb) ->
-    return
 
   start: (done) ->
     {connected, tcp, logger, port, hostname} = self = @
@@ -43,10 +41,3 @@ module.exports = exports = class TcpDriver extends EventEmitter
 
   write: (chunk) ->
     return @tcp.write chunk
-
-  on_data: (chunk) ->
-    return @cb chunk if @cb?
-
-  on_error: (err) ->
-    @logger.info "err => #{err}"
-    @logger.error err

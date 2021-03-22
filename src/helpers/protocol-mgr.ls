@@ -95,7 +95,7 @@ class WebsocketProtocol extends DummyProtocol
 
   send_ws_packet: (direction, chunk) ->
     {ws_event, ws} = self = @
-    setImmediate -> ws.send_packet ws_event, direction, chunk
+    process.nextTick -> ws.send_packet ws_event, direction, chunk
     return null
 
   process_src_bytes: (chunk) ->
