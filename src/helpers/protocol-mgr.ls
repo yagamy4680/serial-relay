@@ -62,7 +62,9 @@ class DummyProtocol extends EventEmitter
   process_dst_bytes: (chunk) ->
     @.emit \from_dst_filtered, chunk
     return null
-
+  
+  process_webapi: (type, action, req, res) ->
+    return res.send "nothing!!" .end!
 
 
 class WebsocketProtocol extends DummyProtocol
@@ -112,6 +114,9 @@ class WebsocketProtocol extends DummyProtocol
     return @.emit \from_src_filtered, chunk if direction is \p2d
     return @.emit \from_dst_filtered, chunk if direction is \p2s
 
+  process_webapi: (type, action, req, res) ->
+    return res.send "nothing!!" .end!
+
 
 ##
 # Given 2 serial drivers (src and dst), the Protocol instance plays the 
@@ -143,6 +148,7 @@ class ProtocolManager
     direction_dumps['d2p'] = "#{src.name}<--p#{COLORIZE '<--', 'bytes', 'p2d'}#{dst.name}"
     logger.info "directions => #{JSON.stringify self.monitor_traffic_filters}"
     w.on \init_remote_protocol, (c, configs) -> return self.init_remote_protocol c, configs
+    w.set_api_callback \test, (action, req, res) -> return p.process_webapi \test, action, req, res
     return
   
   start: (done) ->

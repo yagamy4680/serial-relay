@@ -32,14 +32,19 @@ module.exports = exports = class WebServer extends EventEmitter
     self = @
     self.connections = []
     self.assetDir = path.resolve self.assetDir
+    self.callbacks = {}
     logger = @logger = pino.child {messageKey: 'WebServer'}
     logger.info "assetDir => #{self.assetDir}"
     app = @app = express!
     app.use '/', express.static self.assetDir, {index: <[index.html index.htm]>}
+    app.post '/test/:action', (req, res) -> return self.process_webapi_test_action req, res
     server = @server = http.createServer app
     io = @io = SocketIo server
     channel = @channel = io.of '/relay'
     channel.on 'connection', (c) -> return self.incoming_connection c
+
+  set_api_callback: (name, func) ->
+    @callbacks[name] = func
 
   start: (done) ->
     {server, port, logger, assetDir} = self = @
@@ -74,3 +79,11 @@ module.exports = exports = class WebServer extends EventEmitter
     {name} = configs
     setImmediate -> self.emit 'init_remote_protocol', c, configs
     return logger.info "initiate_remote_protocol ...: #{path.basename name} => #{JSON.stringify configs}"
+  
+  process_webapi_test_action: (req, res) ->
+    {callbacks} = self = @
+    {action} = req.params
+    func = callbacks['test']
+    return res.send "missing test callback\r\n" .end! unless func?
+    return res.send "test callback is not a function\r\n" .end! unless \function is typeof func
+    return func action, req, res
