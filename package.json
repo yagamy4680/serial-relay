@@ -1,6 +1,6 @@
 {
   "name": "serial-relay",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Relay from one serial port to another serial port, with custom protocol filtering / manipulation",
   "keywords": [
     "serialport",

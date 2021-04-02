@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.4](https://github.com/lmtec/tsp4-fw-tests/compare/v0.0.3...v0.0.4) (2021-04-02)
+
+
+### Features
+
+* **web:** support test api ([78c5156](https://github.com/lmtec/tsp4-fw-tests/commit/78c5156e0c3564a4d4e59e331edb361e0ebf1f8b))
+
 ### [0.0.3](https://github.com/lmtec/tsp4-fw-tests/compare/v0.0.2...v0.0.3) (2021-03-22)
 
 
