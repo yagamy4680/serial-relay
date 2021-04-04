@@ -28,7 +28,7 @@ class ConnectionHandler extends EventEmitter
   
 
 module.exports = exports = class WebServer extends EventEmitter
-  (pino, @port, @assetDir) ->
+  (pino, @port, @assetDir, @middlewares) ->
     self = @
     self.connections = []
     self.assetDir = path.resolve self.assetDir
@@ -37,7 +37,13 @@ module.exports = exports = class WebServer extends EventEmitter
     logger.info "assetDir => #{self.assetDir}"
     app = @app = express!
     app.use '/', express.static self.assetDir, {index: <[index.html index.htm]>}
-    app.post '/test/:action', (req, res) -> return self.process_webapi_test_action req, res
+    api = express!
+    p = express!
+    for k, v of middlewares
+      p.use "/#{k}", v
+      logger.info "register web middleware /api/p/#{k} => #{typeof v}"
+    api.use '/p', p
+    app.use '/api', api
     server = @server = http.createServer app
     io = @io = SocketIo server
     channel = @channel = io.of '/relay'
@@ -79,11 +85,3 @@ module.exports = exports = class WebServer extends EventEmitter
     {name} = configs
     setImmediate -> self.emit 'init_remote_protocol', c, configs
     return logger.info "initiate_remote_protocol ...: #{path.basename name} => #{JSON.stringify configs}"
-  
-  process_webapi_test_action: (req, res) ->
-    {callbacks} = self = @
-    {action} = req.params
-    func = callbacks['test']
-    return res.send "missing test callback\r\n" .end! unless func?
-    return res.send "test callback is not a function\r\n" .end! unless \function is typeof func
-    return func action, req, res

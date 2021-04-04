@@ -1,7 +1,10 @@
 EventEmitter = require \events
-require! <[fs path colors]>
+require! <[fs path colors express]>
 TcpMonitor = require \./tcp-monitor
 WebServer = require \./web
+
+global.sr = {}
+global.sr.modules = {express}
 
 const COLORS =
   bytes:
@@ -63,8 +66,8 @@ class DummyProtocol extends EventEmitter
     @.emit \from_dst_filtered, chunk
     return null
   
-  process_webapi: (type, action, req, res) ->
-    return res.send "nothing!!" .end!
+  get_web_middlewares: ->
+    return {}
 
 
 class WebsocketProtocol extends DummyProtocol
@@ -114,8 +117,8 @@ class WebsocketProtocol extends DummyProtocol
     return @.emit \from_src_filtered, chunk if direction is \p2d
     return @.emit \from_dst_filtered, chunk if direction is \p2s
 
-  process_webapi: (type, action, req, res) ->
-    return res.send "nothing!!" .end!
+  get_web_middlewares: ->
+    return {}
 
 
 ##
@@ -137,9 +140,9 @@ class ProtocolManager
   (@pino, @ProtocolClass, @relayDir, @src, @dst, @portTcp, @portWeb, directions='p2d,p2s') ->
     self = @
     self.logger = logger = pino.child {messageKey: "ProtocolManager"}
-    self.monitor = new TcpMonitor pino, portTcp
-    self.web = w = new WebServer  pino, portWeb, "#{relayDir}#{path.sep}web"
     self.p = p = new ProtocolClass self, pino, src.name, dst.name
+    self.monitor = new TcpMonitor pino, portTcp
+    self.web = w = new WebServer  pino, portWeb, "#{relayDir}#{path.sep}web", p.get_web_middlewares!
     self.monitor_traffic_filters = directions.split ','
     self.direction_dumps = direction_dumps = {}
     direction_dumps['s2p'] = "#{src.name}#{COLORIZE '-->', 'bytes', 's2p'}p-->#{dst.name}"
