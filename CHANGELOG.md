@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.5](https://github.com/lmtec/tsp4-fw-tests/compare/v0.0.4...v0.0.5) (2021-04-04)
+
+
+### Features
+
+* **web:** refactorying to use middleware from protocol instead of callback functions for individual urls ([878614c](https://github.com/lmtec/tsp4-fw-tests/commit/878614c012706b242912b3d2224d93b6c6a84bfc))
+
 ### [0.0.4](https://github.com/lmtec/tsp4-fw-tests/compare/v0.0.3...v0.0.4) (2021-04-02)
 
 
