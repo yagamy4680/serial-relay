@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.6](https://gitea.t2t.io/yagamy/urochecker-ee-design/compare/v0.0.5...v0.0.6) (2021-05-03)
+
+
+### Features
+
+* **core:** add dummy driver, and support readline parser in SerialDriver ([1464361](https://gitea.t2t.io/yagamy/urochecker-ee-design/commit/1464361a9f4ea24d4c4e4368dd5e79154a2b0b57))
+
 ### [0.0.5](https://github.com/lmtec/tsp4-fw-tests/compare/v0.0.4...v0.0.5) (2021-04-04)
 
 
