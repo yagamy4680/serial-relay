@@ -1,6 +1,6 @@
 EventEmitter = require \events
 SerialPort = require \serialport
-require! <[byline through2]>
+Readline = require \@serialport/parser-readline
 {BaseDriver} = require \./base
 
 ##
@@ -33,6 +33,8 @@ module.exports = exports = class SerialDriver extends BaseDriver
     stopBits = '1' unless stopBits? and \string is typeof stopBits
     stopBits = parseInt stopBits
     autoOpen = no
+    self.readline = no
+    self.readline = yes if qs.parser? and qs.parser is "readline"
     self.packetFilter = null
     self.pathname = filePath = pathname
     self.opts = opts = {autoOpen, baudRate, dataBits, parity, stopBits}
@@ -50,11 +52,17 @@ module.exports = exports = class SerialDriver extends BaseDriver
   # needs to overwrite this function. 
   #
   connect_internally: ->
-    {logger, name, configs, opts, pathname} = self = @
+    {logger, name, configs, opts, pathname, readline} = self = @
     logger.info "<#{name}>: opening #{pathname.yellow} with options: #{(JSON.stringify opts).yellow} ..."
     p = self.p = new SerialPort pathname, opts
+    if readline
+      logger.info "<#{name}>: parser: ReadLine"
+      pp = self.pp = p.pipe new Readline delimiter: '\r\n'
+      pp.on \data, (data) -> return self.on_data data
+    else
+      pp = self.pp = null
+      p.on \data, (data) -> return self.on_data data
     p.on \error, (err) -> return self.on_error err
-    p.on \data, (data) -> return self.on_data data
     p.on \close, (err) -> return self.on_close err
     (err) <- p.open
     if err?
@@ -77,10 +85,12 @@ module.exports = exports = class SerialDriver extends BaseDriver
     self.clean_and_reset!
 
   clean_and_reset: ->
-    {p} = self = @
+    {p, pp} = self = @
     p.removeAllListeners \error
     p.removeAllListeners \data
     p.removeAllListeners \close
+    pp.removeAllListeners \data if pp?
+    self.pp = null if pp?
     self.p = null
     self.on_disconnected!
 

@@ -19,6 +19,7 @@
     "src/"
   ],
   "dependencies": {
+    "@serialport/parser-readline": "^9.0.7",
     "byline": "^5.0.0",
     "colors": "^1.4.0",
     "express": "^4.17.1",
