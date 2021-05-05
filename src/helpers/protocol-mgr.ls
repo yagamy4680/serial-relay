@@ -1,10 +1,10 @@
 EventEmitter = require \events
-require! <[fs path colors express]>
+require! <[fs path colors express moment]>
 TcpMonitor = require \./tcp-monitor
 WebServer = require \./web
 
 global.sr = {}
-global.sr.modules = {express}
+global.sr.modules = {express, moment, colors}
 
 const COLORS =
   bytes:
