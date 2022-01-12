@@ -18,6 +18,7 @@
     "bin/",
     "src/"
   ],
+  "repository": "github:yagamy4680/serial-relay",
   "dependencies": {
     "@serialport/parser-readline": "^9.0.7",
     "byline": "^5.0.0",
